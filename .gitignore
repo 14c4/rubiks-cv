@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Recordings and large fixtures stay local (see docs/testing.md, "Vision fixtures")
+recordings/
+fixtures/local/
+*.mp4
+*.avi
+*.mkv
+*.mov
+
+# Small redistributable fixtures are committed under tests/fixtures/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store

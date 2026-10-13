@@ -1,0 +1,113 @@
+# Cube conventions
+
+**Status: proposed.** The corner and edge tables below were checked on 2026-10-12 against `twophase/face.py` in Kociemba's own Python package (`pip install RubikTwoPhase`) and match exactly. Still to do in Milestone 1.1: confirm the viewing directions on a physical cube and record acceptance in `docs/decisions.md` (D-001). If a check disagrees with this file, fix the file; do not bend the code to match it.
+
+## Requirements
+
+Document these conventions before implementing moves or conversions:
+
+- Face labels: `U`, `R`, `F`, `D`, `L`, `B`.
+- Facelet order, row/column direction for every face, and corner/edge slot ordering.
+- Cubie orientation definitions and permutation composition order.
+- Clockwise face turns are defined as viewed directly at that face from outside the cube.
+- Separate cube coordinates, camera coordinates, and display coordinates, including axis directions and handedness.
+- Separate the cube’s internal arrangement from its rigid pose in the camera. Whole-cube motion must not accidentally become a face turn.
+- Define how `x`, `y`, and `z` affect the notation reference frame. Do not double-apply a rotation through both pose and state updates.
+
+The mathematical state can use face labels rather than literal colors. Map observed center colors to these labels through a documented scan orientation. Do not assume every cube uses the same literal color scheme.
+
+Once adjacent and opposite centers establish the scheme, derive the allowed physical piece inventory. A corner’s unordered color set identifies the piece, but validating its orientation also requires ordered sticker placement. A mirrored corner arrangement is not a legal twist of that corner.
+
+Keep serialization versioned. Save the conventions or scheme identifier needed to interpret a stored state. Reject malformed inputs with useful errors instead of silently repairing them.
+
+## Proposal: adopt the Kociemba layout
+
+Using the layout from Herbert Kociemba's two-phase solver means widely used tools share your conventions, so they can serve as independent references for golden fixtures and later as the solver in Milestone 7b.
+
+### Facelet string
+
+54 characters in face order `U R F D L B`, nine per face, each face read row by row, left to right, top to bottom. Index `U1` is position 0, `R1` is 9, `F1` is 18, `D1` is 27, `L1` is 36, `B1` is 45. Characters are face labels (`U`…`B`), not colors.
+
+Viewing direction when reading each face from outside the cube:
+
+| Face | Top edge of the face points toward |
+| --- | --- |
+| `U` | `B` |
+| `R`, `F`, `L`, `B` | `U` |
+| `D` | `F` |
+
+```
+             U1 U2 U3
+             U4 U5 U6
+             U7 U8 U9
+ L1 L2 L3    F1 F2 F3    R1 R2 R3    B1 B2 B3
+ L4 L5 L6    F4 F5 F6    R4 R5 R6    B4 B5 B6
+ L7 L8 L9    F7 F8 F9    R7 R8 R9    B7 B8 B9
+             D1 D2 D3
+             D4 D5 D6
+             D7 D8 D9
+```
+
+Solved: `UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB`.
+
+First golden fixture (provenance: generated with `RubikTwoPhase` 2026-10-12, not with this project's code). `R` applied to solved:
+
+`UUFUUFUUFRRRRRRRRRFFDFFDFFDDDBDDBDDBLLLLLLLLLUBBUBBUBB`
+
+Sanity check by hand: an `R` turn carries the front's right column up to `U`, so `U3 U6 U9` become `F`; the `B` column nearest `R` (B1 B4 B7) now shows `U`.
+
+### Corner slots and facelets
+
+Facelets are listed starting with the `U` or `D` sticker, then clockwise.
+
+| Index | Slot | Facelets |
+| --- | --- | --- |
+| 0 | URF | U9, R1, F3 |
+| 1 | UFL | U7, F1, L3 |
+| 2 | ULB | U1, L1, B3 |
+| 3 | UBR | U3, B1, R3 |
+| 4 | DFR | D3, F9, R7 |
+| 5 | DLF | D1, L9, F7 |
+| 6 | DBL | D7, B9, L7 |
+| 7 | DRB | D9, R9, B7 |
+
+### Edge slots and facelets
+
+The first facelet listed is the reference facelet for orientation.
+
+| Index | Slot | Facelets |
+| --- | --- | --- |
+| 0 | UR | U6, R2 |
+| 1 | UF | U8, F2 |
+| 2 | UL | U4, L2 |
+| 3 | UB | U2, B2 |
+| 4 | DR | D6, R8 |
+| 5 | DF | D2, F8 |
+| 6 | DL | D4, L8 |
+| 7 | DB | D8, B8 |
+| 8 | FR | F6, R4 |
+| 9 | FL | F4, L6 |
+| 10 | BL | B6, L4 |
+| 11 | BR | B4, R6 |
+
+### Orientation
+
+- **Corner twist** `co[i]` ∈ {0, 1, 2}: 0 when the piece's `U`/`D` sticker is on the slot's `U`/`D` facelet; 1 or 2 for a clockwise or counterclockwise twist. Legal states have `sum(co) % 3 == 0`.
+- **Edge flip** `eo[i]` ∈ {0, 1}: 0 when the piece's reference sticker is on the slot's reference facelet. Legal states have `sum(eo) % 2 == 0`.
+
+### Permutation and composition
+
+- `cp[i]` is the corner piece currently in slot `i` ("is replaced by" convention). Same for `ep`.
+- Composition `A * B` means "apply A, then B": `(A*B).cp[i] = A.cp[B.cp[i]]` and `(A*B).co[i] = (A.co[B.cp[i]] + B.co[i]) % 3`. Edges are analogous with `% 2`.
+- Applying move `M` to state `S` gives `S * M`.
+
+## Open: rotations and reference frame
+
+Not covered by Kociemba's layout. Decide in `docs/decisions.md` before Milestone 1.6:
+
+- `x` follows `R`, `y` follows `U`, `z` follows `F` (standard WCA direction).
+- Proposed contract: the cubie state lives in a fixed intrinsic frame. A separate frame object records which intrinsic face is currently up and front. Move tokens are interpreted through that frame, and rotations update only the frame. Pose tracking (Milestone 8) updates the frame; it never edits the cubie state.
+
+## Open: color scheme
+
+The state uses face labels. The mapping from observed center colors to labels is set at scan time from the documented scan orientation and saved with any serialized state. Record your physical cube's scheme in `docs/capture-setup.md`.
