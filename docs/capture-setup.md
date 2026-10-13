@@ -7,7 +7,7 @@ Unrestricted speedcubing is a later target, not an initial promise.
 ## Hardware
 
 - **Camera:** (model, connection)
-- **OS and OpenCV backend:** (e.g. Linux / V4L2, macOS / AVFoundation, Windows / DirectShow or MSMF)
+- **OS and OpenCV backend:** Windows 11, OpenCV 5.0.0. Camera index 0 opens on both DirectShow and MSMF at 640×480 by default. DSHOW reports FPS as -1 (unknown) and measured ~22.7 fps; MSMF reports 29.97 and measured ~29.7 fps (3 s headless probe, 2026-10-13).
 - **Cube:** (brand, model, stickered or stickerless)
 - **Color scheme:** (center color for each of U R F D L B as held during scanning)
 

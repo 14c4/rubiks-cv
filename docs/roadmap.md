@@ -12,7 +12,7 @@ Items marked **(added)** were not in the first draft of this plan.
 
 Purpose: learn what is actually hard before building rigor around it. Code lives in `spikes/` and is exempt from the testing and documentation rules.
 
-- [ ] 0.1 Open the webcam with OpenCV and show the live feed in a window.
+- [x] 0.1 Open the webcam with OpenCV and show the live feed in a window.
 - [ ] 0.2 Draw a fixed 3×3 guide grid and sample the mean color of each cell.
 - [ ] 0.3 Print the samples in BGR, HSV, and Lab while holding up each face.
 - [ ] 0.4 Try to lock exposure, white balance, and focus; record which settings your camera and OS actually honor.
