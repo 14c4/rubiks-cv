@@ -4,20 +4,21 @@ Newest entry first. Claude reads the top entry at the start of each session.
 
 ## Current status
 
-- **Re-planned 2026-10-18 (D-009):** five-stage roadmap around a segmentation network trained on synthetic data. Claude writes everything.
-- **Current stage:** Stage 1 done (2026-10-18); Stage 2 (data) next.
-- **Camera in use:** a phone through Iriun Webcam (virtual webcam). When the phone app is not connected, Iriun serves a "Looking for the phone" placeholder or black frames, not an error.
-- **Baseline vision:** calibrated color classifier (D-008), `python -m cubetrack.ui.color_check`. Owner may still record lighting sessions with `python spikes/guided_capture.py <tag>`; they will become Stage 2.3 real data.
-- **Pretrained detector (D-010):** `python -m cubetrack.ui.detect_check` (OWLv2 default, `--backend yolo` fast). Replay checked on saved frames; live not yet tested by the owner.
-- **Next concrete step:** owner tries the detector live and reports; then Stage 2.1, synthetic frame generator (needs Stage 1 for legal random states). Owner, in parallel: record background photos of the desk without the cube and labelled lighting sessions (tool comes with 2.2).
+- **Re-planned 2026-10-18 (D-009, revised D-011):** goal is reading the whole cube during a free-hand inspection, then tracking turns. Stage 1 (cube engine) done; pretrained detector works live.
+- **Current stage:** Stage 2, inspection scan. Color scheme confirmed standard (D-004).
+- **Camera in use:** a phone through Iriun Webcam (virtual webcam). When the phone app is not connected, Iriun serves a placeholder or black frames, not an error.
+- **Baseline vision:** calibrated color classifier (D-008), `python -m cubetrack.ui.color_check`.
+- **Done in Stage 2:** 2.5 assembly (D-012), pure logic, tested on simulated readings.
+- **Next concrete step:** 2.1 synthetic renderer (faces, tiles, corners at any angle, with labels), then 2.2 face geometry model.
 
 ## Commands that work
 
-- `python -m pytest` : 195 tests (cube engine, rotations, color baseline, grid)
+- `python -m pytest` : 332 tests (cube engine, rotations, color baseline, grid, detector, assembly)
 - `python -m pytest -m foundation` : the 159 cube-engine and rotation tests only
 - `python -m cubetrack.cube.net "R U R' U'"` : print the six-face net after a sequence from solved
 - `python -m cubetrack.ui.detect_check --no-window --image <frame.png> [--backend yolo]` : pretrained cube detection on saved frames
 - `python -m cubetrack.evaluation.color_eval` : cross-session / simulated-shadow table for the color classifier
+- `python -m cubetrack.evaluation.assembly_eval [--known-rotations] [--confidence 0.97 0.999]` : assembly outcomes on simulated inspection readings (about 25 s)
 - `python -m cubetrack.ui.color_check --model <model.json> --image <frame.png> --no-window` : replay saved frames through the predictor (run 2026-10-18 on `recordings/guided/20261018_204618_auto`)
 
 ## Log
@@ -33,6 +34,14 @@ Supported conditions and known failures:
 Hardware checks still required: 
 Next step: 
 ```
+
+### 2026-10-18: Stage 2.5, assembly (D-012)
+Completed substeps: 2.5
+Runnable behavior and evidence: `cubetrack.vision.assemble.assemble(readings, rotations=None)`: per-face tile probabilities (faces named by center color, any rotation, tiles missing or misread) -> legal cube candidates with status unique / corrected / incomplete / ambiguous / invalid, contradicted, inferred and disputed tiles, and the engine's verdict on the raw readings. Tests use RubikTwoPhase fixture states and hand-derived cases: clean readings of single moves, 10 random scrambles and solved (known rotations): exact; 50 scrambles with rotations unknown: the scramble ties for best and every other candidate is a real rotation twin; one confident misread corrected and named; three leaning tiles settled by the pieces; twisted corner invalid with `corner_twist`; hidden UR+UF edges give exactly {solved, both flipped}; unseen D face of solved deduced; U vs D' ambiguous without rotations, unique with them. `assembly_eval`, 200 random scrambles per condition, readings 0.85-0.99, rotations unknown: clean 199 unique / 1 ambiguous (a rotation twin); 1 misread 148 corrected / 52 ambiguous; 3 misreads 195 invalid; 1 face unseen 29 deduced / 170 ambiguous; 0 WRONG anywhere; about 20 ms per assembly (1-8 ms with known rotations).
+Checks run and results: `python -m pytest`: 332 passed
+Supported conditions and known failures: simulated readings only. With rotations unknown, some cubes cannot be told apart (U vs D'); 2.4 must supply face rotations. With confident misreads (0.97-0.999), 3 of 400 two- or three-misread cases gave a wrong cube reported as "corrected", and 4 of 200 "one face unseen + one misread" cases came back as a wrong "incomplete" deduction. Only "unique" is a confirmed reading. Two unseen faces: usually too many candidates to list (truncated).
+Hardware checks still required: none (pure logic); real fused readings arrive with 2.4/2.6
+Next step: 2.1 synthetic renderer
 
 ### 2026-10-18: Pretrained cube detector (D-010)
 Completed substeps: none ticked (3.0 added, in progress)

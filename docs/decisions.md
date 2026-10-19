@@ -34,18 +34,18 @@ Decision: see "Open: rotations and reference frame" in `docs/conventions.md`.
 Consequences: notation parsing needs the current frame. Pose tracking updates the frame only.
 
 ## D-003: Supported cube type
-Date:
-Status: open
+Date: 2026-10-18
+Status: accepted
 Context: grid detection strategy depends on whether stickers have dark gaps between them.
 Options: stickered with black plastic; stickerless.
 Note (2026-10-18): the owner's cube is stickerless (captured frames in `recordings/guided/20261018_204618_auto`), with a logo on the white center.
-Decision:
+Decision: support the owner's stickerless cube first. Tile boundaries come from learned face geometry (D-011), not from dark gaps; stickered cubes are not a goal until measured.
 
 ## D-004: Color scheme handling
-Date:
-Status: open
+Date: 2026-10-18
+Status: accepted
 Context: cubes differ in color scheme. The state uses face labels; scanning maps colors to labels.
-Decision:
+Decision: the owner's cube uses the standard scheme (U white, F green, R red, D yellow, L orange, B blue; opposites white/yellow, red/orange, green/blue). The scanner names each face by its center color, independent of how the cube is held, so no scan orientation is required. Serialized scans record the scheme.
 
 ## D-005: Visualization approach
 Date:
@@ -79,7 +79,7 @@ Consequences: one calibration now tolerates mild shadow (a->b at 0.8x: 69/72 con
 
 ## D-009: Re-plan around a segmentation network trained on synthetic data
 Date: 2026-10-18
-Status: accepted
+Status: superseded by D-011 (vision architecture and stage order); the move to learned vision and real-only evidence stands
 Context: the calibrated classifier (D-007/D-008) depends on values captured at calibration; the owner found any change in lighting or position degrades it and wants a method without constant calibration. The owner wants the whole system (detect the cube, read all colors, follow turns) with Claude writing everything and the process streamlined. A local RTX 4080 Super (16 GB) is available.
 Options: keep classical vision (balanced clustering for scans, state-predicted verification for tracking, per-frame color constancy); per-sticker patch classifier network; full-frame segmentation network; end-to-end learned move recognition.
 Decision: one full-frame segmentation network (background, cube body, hand, six colors), starting from torchvision LR-ASPP MobileNet-V3, trained mainly on synthetic frames (domain randomization, exact free labels) and fine-tuned on real self-labelled sessions; classical geometry and the cube engine on top; turn tracking by comparing engine predictions with observations, not a learned move model. New five-stage roadmap (`docs/roadmap.md`); the classical-first rule in CLAUDE.md and design.md is replaced. The D-008 classifier stays as the baseline.
@@ -92,3 +92,19 @@ Context: the owner asked to try pretrained object detection instead of waiting f
 Options: YOLO-World v2 x (ultralytics); OWLv2 base ensemble (transformers); Grounding DINO (not tried).
 Decision: both behind one interface (`src/cubetrack/vision/detect.py`), OWLv2 default. On the 8 saved frames (single flat faces, 640x480): OWLv2 found all 8, scores 0.40-0.88, about 80 ms/frame on the RTX 4080 Super; YOLO-World scored 0.02-0.40, missed 3 at threshold 0.05, about 11 ms/frame. Weights download once into `models/` (git-ignored); Ultralytics telemetry disabled (`yolo settings sync=False`).
 Consequences: possible shortcut for Stage 3 (crop to the cube) and for labelling real data. Unknown until measured: hands, multiple faces visible, motion blur, other objects. Scores are not calibrated probabilities. Revisit after live testing and a measured detection rate on recordings.
+
+## D-011: Inspection scan with face geometry model, per-tile colors and accumulation
+Date: 2026-10-18
+Status: accepted
+Context: the owner's goal is to read the whole cube during a speedcubing-style inspection: the cube turned freely in the hand for about 15 s, 2-3 faces visible at a time, fingers in view, no guided face-by-face prompts. Per-pixel color segmentation (D-009) merges neighbouring same-color tiles on a stickerless cube into one blob, so it cannot give tile positions. The pretrained detector (D-010) finds the cube reliably but knows nothing about faces or tiles.
+Options: per-pixel segmentation + geometry; trained tile detector; face/corner keypoint model + per-tile color model + accumulation over frames.
+Decision: (1) a keypoint model trained on synthetic renders (fine-tuned on real frames) gives visible faces and their 3×3 grids at any angle; (2) per-tile color probabilities from the baseline classifier first, then a small patch network trained on real tiles if it beats the baseline; (3) evidence accumulated over the inspection, faces named by their center color; (4) the engine resolves the 4^6 face rotations, the nine-per-color constraint, validity and piece identities. Verification by a scramble test: a known scramble applied to a solved cube, inspected, compared with the engine's expected state. Roadmap rewritten: Stage 2 inspection scan, Stage 3 turn tracking.
+Consequences: piece type and identity come from geometry and the engine, not from vision. Synthetic data is needed mainly for geometry (corners), which is easier to make realistic than colors; color training can rely on real tiles labelled by scramble tests. Revisit if the keypoint model fails on real hand-held frames after fine-tuning, or if accumulation cannot separate a misread from a layer turn.
+
+## D-012: Assembly by piece-level maximum likelihood, with honest statuses
+Date: 2026-10-18
+Status: accepted
+Context: roadmap 2.5 turns six faces of per-tile color probabilities (each face named by its center, in an unknown rotation, some tiles missing or misread) into a cube state. It must report ambiguity, incompleteness and invalidity instead of guessing. scipy (Hungarian algorithm) is not installed.
+Options: take each tile's most likely color and validate (fails on any misread); balance colors to nine each (does not know about pieces); search over pieces with likelihood scores (chosen).
+Decision: (1) each reading becomes a cost -ln P(reading | color) with a 2% misread rate mixed in; (2) a cube is chosen piece by piece (each corner/edge once, legal twist and flip sums, matching parity), which implies nine-per-color; (3) all 4^6 face-rotation combinations get a vectorized lower bound and only promising ones are searched; rotations of a face that read identically are merged optimistically, and every cube found is scored exactly per face; (4) branch and bound (NumPy only) finds the best cube and every cube within ln 100 of it. Status: unique (clear winner, all seen, no confident reading contradicted) / corrected (clear winner that overrides 1-2 confident readings: look again) / incomplete (deduced tiles) / ambiguous (`disputed` tiles to look at) / invalid (more than 2 confident readings contradicted). Raw readings are validated by the engine separately. Optional known face rotations (`rotations=`) restrict the search (`src/cubetrack/vision/assemble.py`).
+Consequences: with rotations unknown, some cubes are indistinguishable (U vs D', found by the tests), so 2.4 should pass each face's rotation from the neighbor it was seen next to. Legal cubes can differ in only 3 tiles, so two or three confident misreads can make another cube fit best; this is why only "unique" counts as confirmed. Simulated evaluation (`cubetrack.evaluation.assembly_eval`, 200 scrambles per condition): zero WRONG unique answers in every condition; with confident misreads (0.97-0.999), 3 of 400 two- or three-misread cases were wrong but reported as "corrected", and 4 of 200 "one face unseen + one misread" cases came back as a wrong "incomplete" deduction. Revisit the margin and misread rate with real fused readings from 2.4/2.6.

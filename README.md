@@ -13,5 +13,6 @@ python -m pytest -m foundation
 python -m cubetrack.cube.net "R U R' U'"
 python -m cubetrack.ui.detect_check --no-window --image <frame.png>
 python -m cubetrack.evaluation.color_eval
+python -m cubetrack.evaluation.assembly_eval [--known-rotations]
 python -m cubetrack.ui.color_check --model <model.json> --image <frame.png> --no-window
 ```

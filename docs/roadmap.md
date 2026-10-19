@@ -1,69 +1,41 @@
 # Roadmap
 
-Re-planned 2026-10-18 (D-009). The previous milestone plan (Milestones 0-15) is in git history; its principles carry over, its order does not.
+Re-planned 2026-10-18 (D-009, revised by D-011). The previous milestone plan (Milestones 0-15) is in git history; its principles carry over, its order does not.
 
 Stages are dependency ordered. Status lives in `docs/progress.md`. Tick a box only when its acceptance evidence exists, and record that evidence in the progress log.
 
-**The idea:** one neural network labels every pixel of a camera frame (background, cube body, hand, six sticker colors). Classical geometry turns that into faces, 3×3 grids and per-sticker color probabilities. The cube engine holds the authoritative state. Turn tracking compares what the camera sees with what each candidate move predicts. The network is trained mostly on synthetic frames with free, exact labels; only real held-out recordings count as evidence.
+**The goal:** during a speedcubing-style inspection (about 15 s of turning the cube around in front of the camera, no layer turns), read all 54 tiles and reconstruct the exact cube state; then follow the turns of the solve. Trained vision models find faces and read tile colors frame by frame; evidence is accumulated over the whole inspection; the cube engine assembles, checks and identifies pieces. Only real recordings count as evidence of accuracy.
 
-## Done before the re-plan
+## Done
 
-- Milestone 0 spike (0.1-0.3): live feed, guide grid, BGR/HSV/Lab numbers from the real cube. 0.4 (camera locking) and 0.5 dropped.
-- Calibrated color classifier with per-cell confidence (D-007, D-008), live app `cubetrack.ui.color_check`, evaluation `cubetrack.evaluation.color_eval`. Kept as the **baseline** the network must beat.
+- **Exploration (old Milestone 0, 0.1-0.3):** live feed, guide grid, BGR/HSV/Lab numbers from the real cube.
+- **Baseline color classifier (D-007, D-008):** calibrated, per-tile confidence; `cubetrack.ui.color_check`, `cubetrack.evaluation.color_eval`. Kept as the baseline that trained models must beat.
+- **Stage 1, cube engine:** state, 18 turns, facelet conversion with validation and piece identification, x/y/z frame, text net (`src/cubetrack/cube/`).
+- **Pretrained cube detector (D-010):** OWLv2 / YOLO-World, `cubetrack.ui.detect_check`; owner: "works very well" live. Used for cropping and sanity checks, not as the final per-frame model.
 
-## Stage 1: Cube engine (old Milestones 1-2, trimmed)
+## Stage 2: Inspection scan (old Milestones 5-7, Checkpoint A)
 
-Pure Python/NumPy, no camera. Conventions in `docs/conventions.md` (Kociemba layout).
+- [ ] 2.1 **Synthetic renderer:** random legal states from the engine, the owner's cube look (stickerless, standard scheme, logo on white center), random pose, distance, light color and intensity, shadows, glare, motion blur, hand occluders, varied backgrounds. Labels: visible cube corners, each visible face's outline, each tile's polygon, color and facelet index. Owner judges rendered vs. real frames side by side.
+- [ ] 2.2 **Face geometry model (I1):** a keypoint model (e.g. YOLO pose via ultralytics) trained on 2.1, fine-tuned on real frames: per frame, the visible faces (1-3), their outlines, and a 3×3 tile grid for each, at any angle, with hands present. Plain geometry turns corners into tile quadrilaterals.
+- [ ] 2.3 **Tile colors (I2):** per tile, color probabilities plus "not usable" (hand, glare, blur, off-face). Start with the baseline classifier on the grid from 2.2; then a small network on tile image patches trained on real tiles from 2.6 runs with lighting augmentation; adopt it only if it beats the baseline on held-out lighting.
+- [ ] 2.4 **Accumulation (I3):** the center tile names the face (white center = white face, logo included); repeated sightings of a face are aligned (4 rotations) and their tile probabilities fused, weighted by quality; a contradiction between sightings is flagged (possible layer turn or misread). Each face's absolute rotation comes from the neighbor it was seen next to and is passed to assembly: without it some cubes are indistinguishable (the cube after U reads like the one after D'; D-012).
+- [x] 2.5 **Assembly (I4):** six fused faces → one cube: search the 4^6 face rotations and the nine-per-color constraint, validate with the engine, identify every corner and edge; if several legal cubes fit, keep them and ask for a specific view instead of guessing.
+- [ ] 2.6 **Live app (I5) and scramble test:** camera view with face outlines and per-tile color / piece type / confidence; a 2D net filling in as faces are seen; coverage ("bottom face not seen yet"). Scramble test mode: the app gives a scramble, the owner applies it to a solved cube and inspects, the app compares its result with the engine's expected state (exact match or which tiles were wrong, time to full coverage) and saves the labelled frames as real data.
 
-- [x] 1.1 Cubie state: corner/edge permutation and orientation; identity, equality, copy, versioned serialization.
-- [x] 1.2 All 18 face turns (quarter, inverse, half) and move-sequence parsing with useful errors; sequence inversion.
-- [x] 1.3 Facelet conversion both ways (54-character Kociemba string), with diagnostics for impossible stickers.
-- [x] 1.4 Validity checks: color counts, piece identity, duplicates/missing pieces, twist sum, flip sum, permutation parity; structured diagnostic codes; "incomplete" distinct from "invalid".
-- [x] 1.5 Whole-cube rotations `x y z` through a reference frame that never edits the cubie state (resolves D-002).
-- [x] 1.6 Text six-face net for inspection.
+**Acceptance:** scramble tests in at least 5 lighting setups (bright, desk shadow, dim, lamp, daylight) with free-hand inspection: exact state on held-out runs at a rate set before the final evaluation; every miss reported with its cause; no confident wrong state (an ambiguous or invalid result must say so). Raw readings, constraint-corrected result and engine-verified result kept distinct.
 
-**Acceptance:** independent fixtures pass: the `R`-from-solved fixture in `docs/conventions.md`, hand-derived single turns, and an external reference engine (RubikTwoPhase's own move tables: 74 stored sequences, `tests/fixtures/cube/`). The solver round-trip check moves to Stage 4.4. Identity checks from `docs/testing.md` pass (move/inverse, four quarter turns, sexy move ×6, noncommuting pairs). Every invalid-state fixture fails for its intended reason.
+**Checkpoint A:** the cube is read from a normal inspection. A legitimate place to pause; a solution display (external solver, labelled as computed) and 3D view can be added here.
 
-## Stage 2: Data
+## Stage 3: Turn tracking (old Milestones 8-10)
 
-- [ ] 2.1 Synthetic frame generator: random legal states from the engine (also mid-turn layers, for Stage 5), random pose and camera, the owner's cube look (stickerless, logo on the white center), random light color and intensity, shadows, glare, blur, noise, hand-like occluders, real backgrounds. Outputs image + per-pixel labels + face corners + sticker colors.
-- [ ] 2.2 One capture tool (replaces the spikes): records frames with metadata (camera, lighting tag, time); modes: background photos (no cube), labelled session (solved cube, face by face: self-labelling), free recording for replay.
-- [ ] 2.3 Real labelled data: sessions in at least 5 lighting setups (bright, desk shadow, dim, lamp, daylight), plus background photos. Annotate a small set of full frames (face corners) for detection checks.
+- [ ] 3.1 Orientation from the visible faces and known tiles; whole-cube rotations update the reference frame only.
+- [ ] 3.2 Motion detection: layer moving vs. whole cube moving vs. still.
+- [ ] 3.3 After motion settles, score no-move and all 18 turns (and rotations) by comparing engine-predicted visible tiles with observations; commit only on a clear winner, otherwise mark uncertain or ask for a view.
+- [ ] 3.4 Timestamped move history with confirmed / provisional / unresolved status; live virtual cube.
+- [ ] 3.5 Sequences: slow scripted sequences first, then gradually faster; capture and processing separated so dropped frames are visible.
 
-**Acceptance:** owner judges synthetic and real frames side by side as similar; real sessions recorded with provenance; real data split by session into fine-tune and held-out sets before any training.
+**Acceptance:** owner performs scripted sequences (provided by Claude) after an inspection scan; report insertions, deletions and substitutions against the script, not only final-state agreement.
 
-## Stage 3: Vision model (replaces old Milestones 5-6)
-
-- [ ] 3.0 Pretrained, text-prompted detector to locate the cube (D-010): `cubetrack.ui.detect_check`. Measure on real recordings how often it finds the cube; if reliable, crop to its box before segmentation and use it (plus a segmenter such as SAM) to auto-label real frames for 2.3.
-
-- [ ] 3.1 Segmentation network (start: torchvision LR-ASPP MobileNet-V3, pretrained), trained on synthetic frames, fine-tuned on the real fine-tune sessions. Training reproducible from one command; runs on the local GPU.
-- [ ] 3.2 Geometry: from the pixel map find visible faces, fit each face's quadrilateral, place the 3×3 grid, average pixel probabilities per sticker; flag hands, glare and partial faces.
-- [ ] 3.3 Confidence check: measure whether stated confidence matches accuracy on held-out real data (calibration of probabilities); fix it (e.g. temperature scaling) before the UI shows percentages.
-- [ ] 3.4 Live app: automatic face detection and sticker colors with confidence, no grid alignment, no color calibration. Same pipeline for replay.
-
-**Acceptance (held-out real sessions only):** ≥ 99% of visible stickers correct across lighting setups not used for training; confident-wrong rate below the D-008 baseline on the same data; hands labelled as hand; faces found on annotated frames with grid error small enough that every sticker box lies on its sticker.
-
-## Stage 4: Full scan (old Milestone 7, Checkpoint A)
-
-- [ ] 4.1 Six-face scan in any order; centers identify faces; orientation guidance so faces are not rotated or duplicated.
-- [ ] 4.2 Joint assignment of all 54 stickers (exactly nine per color) using the network's probabilities.
-- [ ] 4.3 Facelets → cubie state through Stage 1; validation; bounded search among uncertain stickers; targeted rescan request when still ambiguous.
-- [ ] 4.4 Display the scanned cube (net); optional solution from the external solver, labelled as computed.
-
-**Acceptance:** multiple scrambled cubes in several lighting setups scanned correctly, each verified face by face against the physical cube by the owner. Raw scan, constraint-corrected result and owner-verified result are kept distinct.
-
-**Checkpoint A:** a validated cube scanner. A legitimate place to pause.
-
-## Stage 5: Turn tracking (old Milestones 8-10)
-
-- [ ] 5.1 Orientation from visible faces and known stickers; whole-cube rotations update the reference frame only.
-- [ ] 5.2 Motion detection: layer moving vs. whole cube moving vs. still.
-- [ ] 5.3 After motion settles, score no-move and all 18 turns (and rotations) by comparing engine-predicted visible stickers with observations; commit only on a clear winner, otherwise mark uncertain or ask for a view.
-- [ ] 5.4 Timestamped move history with confirmed / provisional / unresolved status; live display.
-- [ ] 5.5 Sequences: slow scripted sequences first, then gradually faster; capture and processing separated so dropped frames are visible.
-
-**Acceptance:** owner performs scripted sequences (provided by Claude) on camera; report insertions, deletions and substitutions against the script, not only final-state agreement. A smart cube for ground truth is optional later.
-
-## Later (after Stage 5 works)
+## Later (after Stage 3 works)
 
 Multiple-hypothesis tracking and recovery from mistakes (old 11-12), full-solve reliability evaluation (old 13), solve recording and analysis, algorithm practice (old 14-15), 3D view. Their acceptance rules from the old plan still apply when they are planned in detail.

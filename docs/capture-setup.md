@@ -6,10 +6,10 @@ Unrestricted speedcubing is a later target, not an initial promise.
 
 ## Hardware
 
-- **Camera:** (model, connection)
+- **Camera:** owner's phone through Iriun Webcam (virtual webcam, 640×480 via DirectShow). When the phone app is not connected Iriun serves a placeholder or black frames.
 - **OS and OpenCV backend:** Windows 11, OpenCV 5.0.0. Camera index 0 opens on both DirectShow and MSMF at 640×480 by default. DSHOW reports FPS as -1 (unknown) and measured ~22.7 fps; MSMF reports 29.97 and measured ~29.7 fps (3 s headless probe, 2026-10-13).
-- **Cube:** (brand, model, stickered or stickerless)
-- **Color scheme:** (center color for each of U R F D L B as held during scanning)
+- **Cube:** stickerless 3×3 with a printed logo on the white center (D-003).
+- **Color scheme:** standard (D-004), confirmed by the owner 2026-10-18: white opposite yellow, red opposite orange, green opposite blue; with white up and green in front, red is on the right. Face labels: U white, F green, R red, D yellow, L orange, B blue.
 
 ## Camera settings
 
