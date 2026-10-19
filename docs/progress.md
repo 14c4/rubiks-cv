@@ -11,7 +11,7 @@ Newest entry first. Claude reads the top entry at the start of each session.
 - **Done in Stage 2:** 2.1 synthetic renderer (D-013, D-014; owner approved the side-by-side 2026-10-19); 2.5 assembly (D-012), pure logic, tested on simulated readings.
 - **Setup (owner, 2026-10-18):** camera faces the owner, who holds the cube up and turns it (capture-setup.md).
 - **Real clips (local, `recordings/clips/`):** two inspection clips of a known scramble (state in `*.cube.json`; the slow one verified on four faces), one background clip. Camera not mirrored. Training uses `inspection_scramble1` (hands) and `background`; `deeper_inspection` is kept out of training for evaluation.
-- **Next concrete step:** plan 2.2 face geometry model. Data habit: add short clip pairs (inspection + background) in new conditions; keep one separate session out of training as the test.
+- **Next concrete step:** owner confirms the 2.2 plan (roadmap 2.2, D-015 proposed); then 2.2a (training data export) and 2.2b (click tool + owner labels the dev set). Data habit: add short clip pairs (inspection + background) in new conditions; keep one separate session out of training as the test.
 
 ## Commands that work
 
