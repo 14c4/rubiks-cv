@@ -8,17 +8,23 @@ Newest entry first. Claude reads the top entry at the start of each session.
 - **Current stage:** Stage 2, inspection scan. Color scheme confirmed standard (D-004).
 - **Camera in use:** a phone through Iriun Webcam (virtual webcam). When the phone app is not connected, Iriun serves a placeholder or black frames, not an error.
 - **Baseline vision:** calibrated color classifier (D-008), `python -m cubetrack.ui.color_check`.
-- **Done in Stage 2:** 2.5 assembly (D-012), pure logic, tested on simulated readings.
-- **Next concrete step:** 2.1 synthetic renderer (faces, tiles, corners at any angle, with labels), then 2.2 face geometry model.
+- **Done in Stage 2:** 2.1 synthetic renderer (D-013, D-014; owner approved the side-by-side 2026-10-19); 2.5 assembly (D-012), pure logic, tested on simulated readings.
+- **Setup (owner, 2026-10-18):** camera faces the owner, who holds the cube up and turns it (capture-setup.md).
+- **Real clips (local, `recordings/clips/`):** two inspection clips of a known scramble (state in `*.cube.json`; the slow one verified on four faces), one background clip. Camera not mirrored. Training uses `inspection_scramble1` (hands) and `background`; `deeper_inspection` is kept out of training for evaluation.
+- **Next concrete step:** plan 2.2 face geometry model. Data habit: add short clip pairs (inspection + background) in new conditions; keep one separate session out of training as the test.
 
 ## Commands that work
 
-- `python -m pytest` : 332 tests (cube engine, rotations, color baseline, grid, detector, assembly)
+- `python -m pytest` : 364 tests (cube engine, rotations, color baseline, grid, detector, assembly, renderer)
 - `python -m pytest -m foundation` : the 159 cube-engine and rotation tests only
 - `python -m cubetrack.cube.net "R U R' U'"` : print the six-face net after a sequence from solved
 - `python -m cubetrack.ui.detect_check --no-window --image <frame.png> [--backend yolo]` : pretrained cube detection on saved frames
 - `python -m cubetrack.evaluation.color_eval` : cross-session / simulated-shadow table for the color classifier
 - `python -m cubetrack.evaluation.assembly_eval [--known-rotations] [--confidence 0.97 0.999]` : assembly outcomes on simulated inspection readings (about 25 s)
+- `python -m cubetrack.synth.hands --clips <inspection clip> --out data/hands` : cut the owner's hands out of a clip (OWLv2 + SAM, GPU, about 2 min for 35 s of video)
+- `python -m cubetrack.synth.generate --out data/synth/v1 --count 2000 --backgrounds <background clip> --hands data/hands` : synthetic frames + JSON labels, about 33 frames/s with 8 workers
+- `python -m cubetrack.synth.sheet --out sheet.png [--labels] [--real <frames or video>]` : contact sheet; labels drawn; real vs synthetic side by side
+- `python -m cubetrack.ui.record [--name background]` : record clips (R start/stop) with per-frame timestamps; headless run `--seconds 2 --no-window` tested with the phone disconnected only
 - `python -m cubetrack.ui.color_check --model <model.json> --image <frame.png> --no-window` : replay saved frames through the predictor (run 2026-10-18 on `recordings/guided/20261018_204618_auto`)
 
 ## Log
@@ -34,6 +40,31 @@ Supported conditions and known failures:
 Hardware checks still required: 
 Next step: 
 ```
+
+### 2026-10-19: Stage 2.1, real hands (D-014)
+Completed substeps: 2.1 (owner: renders "look good" next to the held-out real clip, 2026-10-19)
+Runnable behavior and evidence: owner judged the drawn hands "very bad". `cubetrack.synth.hands` now cuts the owner's real hands out of `inspection_scramble1` (OWLv2 boxes, SAM masks, skin-chroma cleanup): 239 crops from 278 sampled frames (every 3rd), 61 MB in `data/hands`. Pasted so the real cube's box matches the rendered cube's, with soft shadows; the pasted alpha is the occluder label. `data/synth/v1` regenerated: 2000 frames, 108 MB, 33 frames/s. Comparison sheet uses the held-out `deeper_inspection` as the real side.
+Occlusion and variety (measured): share of the cube's box covered by hands, real frames (hand library, 278 sampled, frames without usable hands counted as 0) p10/p50/p90 0.00 / 0.18 / 0.35; synthetic (300 frames, same measure) 0.00 / 0.22 / 0.38. Over the 2000 frames: 1 / 2 / 3 faces visible 5% / 34% / 60%; 73% of visible-face tiles clearly visible, 10% hidden; 91% of faces turned toward the camera keep at least 5 of 9 tiles visible; 2% of frames have fewer than 5 clearly visible tiles; cube width p10/p50/p90 108 / 173 / 290 px. Narrow: hands from 35 s of one clip, backgrounds from one 33 s clip (one room, shirt, evening).
+Checks run and results: `python -m pytest`: 366 passed (2 new: paste alignment within a pixel of the hand-computed position; pasted hands lower tile visibility in the labels)
+Supported conditions and known failures: one person / session / lighting; hand parts the real cube hid are missing, visible as gaps when the rendered cube's pose differs a lot; a few crops include a shadowed forearm
+Hardware checks still required: none
+Next step: plan 2.2
+
+### 2026-10-18: Stage 2.1 renderer tuned to the owner's real clips
+Completed substeps: none ticked (owner judgement pending)
+Runnable behavior and evidence: owner recorded `inspection_scramble1` (34.7 s), `deeper_inspection` (44.1 s, pauses on faces) and `background` (32.7 s), all 640x480 at a steady 24 fps. The scramble had been applied holding blue up / white facing the owner (x'): the four faces paused on match the engine's state for that hold exactly, and no other of 24 holds x 4 rotations x mirrored or not; state saved next to each clip (`*.cube.json`; the first clip's state assumed, not cross-checked). Camera not mirrored (owner's paper test). OWLv2 on 80 inspection frames (0 missed): cube box 124 / 150 / 183 px wide (p10 / p50 / p90), center at 0.59 width, 0.66 height. Renderer now: 70% of poses around that size and place; usually two hands (fingertips over the left and right edges, thumbs below, palms behind), fingers 0.3-0.42 of the cube's width, half the hands in the owner's measured skin tone; motion blur up to 25 px in half the frames; real background frames from the clip in 80% of frames. `data/synth/v1` regenerated (1000 frames, 22 frames/s).
+Checks run and results: `python -m pytest`: 364 passed
+Supported conditions and known failures: fake hands are smooth, cartoonish shapes; real background frames sometimes contain the owner's own hands not holding anything (fine as distractors); one room and one lighting so far
+Hardware checks still required: none for 2.1 beyond the owner's judgement
+Next step: owner judges `data/synth/sheets/real_vs_synthetic.png`; then 2.2
+
+### 2026-10-18: Stage 2.1 synthetic renderer, first version (D-013)
+Completed substeps: none ticked (2.1 needs the owner's side-by-side judgement on real clips from the camera-facing setup)
+Runnable behavior and evidence: `cubetrack.synth` (render: engine geometry, pinhole camera, lit face textures pasted with homographies, labels; scene: random pose / look / light, procedural room-and-person or real backgrounds, palm behind the cube, tapered fingers with shadows, exposure / white balance / blur / noise / JPEG; generate: parallel dataset writer, frame i seeded by (seed, i); sheet: contact sheets). Labels per frame: 8 cube corners (visible, occluded, in frame), each visible face's outline in reading order and its 9 tiles (quad, center, color, facelet index, visible share). 1000 frames written to `data/synth/v1` (49 MB) at about 20 frames/s. First real-vs-synthetic sheet showed wide black grooves where the owner's stickerless cube has thin seams in the tile's own color; fixed. `cubetrack.ui.record` added for the owner's clips.
+Checks run and results: `python -m pytest`: 364 passed (32 new). Pixel test: colors at labelled tile centers match RubikTwoPhase fixture states from two corner views; mirroring the texture on purpose made all 20 cases fail. Face reading order matches docs/conventions.md for all six faces; corner counts 4 / 6 / 7 for 1 / 2 / 3 faces; occluder test hides exactly the covered column and corners.
+Supported conditions and known failures: fingers are shaded capsules and the palm sometimes shows as a disk; procedural backgrounds look cartoonish (real background clips are supported and should dominate); no reflections, cube edges not rounded; the logo is random red strokes. Only compared with old flat desk frames so far.
+Hardware checks still required: owner records an inspection clip and a background clip in the camera-facing setup (recorder only tested headless with the phone disconnected: black frames, 10.7 fps); owner judges `sheet --real`.
+Next step: owner clips and judgement, then 2.2
 
 ### 2026-10-18: Stage 2.5, assembly (D-012)
 Completed substeps: 2.5

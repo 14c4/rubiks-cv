@@ -8,6 +8,7 @@ venv/
 
 # Recordings and large fixtures stay local (see docs/testing.md, "Vision fixtures")
 recordings/
+data/
 fixtures/local/
 *.mp4
 *.avi
