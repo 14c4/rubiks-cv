@@ -14,6 +14,10 @@ fixtures/local/
 *.mkv
 *.mov
 
+# Downloaded pretrained model weights
+models/
+weights/
+
 # Per-machine color calibration (depends on your camera and lighting)
 calibration/
 

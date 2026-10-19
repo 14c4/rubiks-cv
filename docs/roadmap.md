@@ -34,6 +34,8 @@ Pure Python/NumPy, no camera. Conventions in `docs/conventions.md` (Kociemba lay
 
 ## Stage 3: Vision model (replaces old Milestones 5-6)
 
+- [ ] 3.0 Pretrained, text-prompted detector to locate the cube (D-010): `cubetrack.ui.detect_check`. Measure on real recordings how often it finds the cube; if reliable, crop to its box before segmentation and use it (plus a segmenter such as SAM) to auto-label real frames for 2.3.
+
 - [ ] 3.1 Segmentation network (start: torchvision LR-ASPP MobileNet-V3, pretrained), trained on synthetic frames, fine-tuned on the real fine-tune sessions. Training reproducible from one command; runs on the local GPU.
 - [ ] 3.2 Geometry: from the pixel map find visible faces, fit each face's quadrilateral, place the 3×3 grid, average pixel probabilities per sticker; flag hands, glare and partial faces.
 - [ ] 3.3 Confidence check: measure whether stated confidence matches accuracy on held-out real data (calibration of probabilities); fix it (e.g. temperature scaling) before the UI shows percentages.
