@@ -4,12 +4,19 @@ Newest entry first. Claude reads the top entry at the start of each session.
 
 ## Current status
 
-- **Current milestone:** 0 (OpenCV spike), 0.1 done, 0.2 in progress
-- **Next concrete step:** finish 0.2 in `spikes/` (owner-written). Explained so far: coordinates, `cv2.rectangle`, slicing a cell and averaging with `.mean(axis=(0, 1))`, sampling with a margin before drawing, printing on spacebar. Pick up by reviewing the owner's current spike code.
+- **Re-planned 2026-10-18 (D-009):** five-stage roadmap around a segmentation network trained on synthetic data. Claude writes everything.
+- **Current stage:** Stage 1 done (2026-10-18); Stage 2 (data) next.
+- **Camera in use:** a phone through Iriun Webcam (virtual webcam). When the phone app is not connected, Iriun serves a "Looking for the phone" placeholder or black frames, not an error.
+- **Baseline vision:** calibrated color classifier (D-008), `python -m cubetrack.ui.color_check`. Owner may still record lighting sessions with `python spikes/guided_capture.py <tag>`; they will become Stage 2.3 real data.
+- **Next concrete step:** Stage 2.1, synthetic frame generator (needs Stage 1 for legal random states). Owner, in parallel: record background photos of the desk without the cube and labelled lighting sessions (tool comes with 2.2).
 
 ## Commands that work
 
-None yet. Add commands here and in the README only after running them successfully.
+- `python -m pytest` : 195 tests (cube engine, rotations, color baseline, grid)
+- `python -m pytest -m foundation` : the 159 cube-engine and rotation tests only
+- `python -m cubetrack.cube.net "R U R' U'"` : print the six-face net after a sequence from solved
+- `python -m cubetrack.evaluation.color_eval` : cross-session / simulated-shadow table for the color classifier
+- `python -m cubetrack.ui.color_check --model <model.json> --image <frame.png> --no-window` : replay saved frames through the predictor (run 2026-10-18 on `recordings/guided/20261018_204618_auto`)
 
 ## Log
 
@@ -24,6 +31,38 @@ Supported conditions and known failures:
 Hardware checks still required: 
 Next step: 
 ```
+
+### 2026-10-18: Stage 1, cube engine
+Completed substeps: 1.1-1.6
+Runnable behavior and evidence: `src/cubetrack/cube/` (state, moves derived from 3D geometry, facelet conversion and validation with diagnostic codes, x/y/z reference frame, text net). Engine matches all 74 stored sequences from the independent RubikTwoPhase engine (18 single moves, 6 named, 50 seeded random up to 30 moves) and the hand-checked R fixture. Hand-derived U turn and rotation mappings pass.
+Checks run and results: `python -m pytest`: 195 passed (159 foundation)
+Supported conditions and known failures: face turns and x/y/z only; wide and slice moves rejected with a message
+Hardware checks still required: none (optional: compare `cubetrack.cube.net` output with a physical cube)
+Next step: Stage 2.1 synthetic frames
+
+### 2026-10-18: Shadow-robust colors, logo center, edge flag (D-008)
+Completed substeps: none ticked (progress on 5.4/5.6 quality flags, 6.3, 6.6)
+Runnable behavior and evidence: features changed to (3 ln L*, 40 a*/L*, 40 b*/L*) + "too dark" gate; center prototypes; per-cell lightness spread flags boxes on edges/gaps ("edge"). `color_eval`: calibrate a -> b: 70/72 confident, 0 wrong; 20% simulated shadow 69/72 confident (old features: 4/69); b -> a: 54/54, shadow 49/54; zero wrong colors at any dimming. Replay on saved frames: logo center reads white 100%; the tilted frame's two boxes on gaps are flagged edge.
+Checks run and results: `python -m pytest`: 36 passed
+Supported conditions and known failures: pale skin reads as white at 65-79% (shown uncertain, not rejected); shadows simulated by dimming only (real shadows also shift color); constants tuned looking at both sessions, so there is no clean held-out set until new sessions are recorded
+Hardware checks still required: owner live check after recalibration; recorded lighting sessions
+Next step: owner records bright / desk_shadow / dim sessions (Part B)
+
+### 2026-10-18: Color predictor with per-cell confidence (ahead of roadmap, owner request)
+Completed substeps: none ticked (5.1, 6.1, 6.3 partially covered; see D-007)
+Runnable behavior and evidence: `src/cubetrack/vision/color.py` (classifier), `vision/grid.py` (guide grid sampling), `ui/color_check.py` (live + replay app with calibration). Calibrated on session a, held-out session b: 0 wrong of 69 non-logo cells, all >= 90% confidence, including tilted white faces; reverse direction 0 of 53. Logo center, skin, table and gray come out "unknown"; a red/orange midpoint gets about 52/47. Replay command run on full saved frames: correct. One live frame classified headlessly: it was the Iriun placeholder (phone not connected) and all cells came out "unknown".
+Checks run and results: `python -m pytest`: 22 passed
+Supported conditions and known failures: fixed grid, cube held flat in it; calibration needed per lighting; not yet tested live with the cube; no temporal smoothing
+Hardware checks still required: live calibration + prediction run with the phone connected
+Next step: owner live run
+
+### 2026-10-18: Milestone 0.2 and 0.3, grid sampling and color spaces
+Completed substeps: 0.2, 0.3
+Runnable behavior and evidence: `spikes/grid_sample.py` run live by the owner on two cube faces (4 presses each, cube still); output pasted into the session. Values were stable between presses (BGR within about 2, hue within 3). Red and orange separate clearly in V and Lab L. Observations are in `docs/learning.md`.
+Checks run and results: headless check of sampling and conversion on synthetic frames with known colors: pass (spike, no pytest)
+Supported conditions and known failures: orange R channel clipped at 255; white has a warm cast (Lab b about 140); red hue sits at 0-3, on the wrap-around
+Hardware checks still required: exposure / white balance / focus lock (0.4); camera model not yet recorded
+Next step: 0.4 (solved-face data collected afterwards is in `docs/learning.md`; `spikes/guided_capture.py` makes repeatable before/after captures)
 
 ### 2026-10-13: Milestone 0.1, live webcam feed
 Completed substeps: 0.1

@@ -8,7 +8,7 @@ The core product is reliable tracking. Analytics and coaching come afterward. A 
 
 Start with one cube, one fixed webcam, stable lighting, a clear background, and deliberately slow turns. Expand supported conditions only after measuring performance.
 
-This is also a learning project. The owner is new to computer vision and wants to understand how each part works, not only to have it built.
+This is also a learning project. The owner is new to computer vision and wants to understand how each part works. Claude writes all code (owner decision, 2026-10-18) and explains the non-obvious parts.
 
 ## Where things live
 
@@ -20,14 +20,14 @@ This is also a learning project. The owner is new to computer vision and wants t
 | `docs/design.md` | Data contracts, component boundaries, interface rules, known limits, recording rules |
 | `docs/capture-setup.md` | Camera, lighting, and supported operating conditions |
 | `docs/decisions.md` | Before making or revisiting a consequential design choice |
-| `docs/learning.md` | Who writes which component; open questions; glossary |
+| `docs/learning.md` | Open questions, spike observations, glossary (local only, git-ignored; may be absent in a fresh clone) |
 | `docs/progress.md` | Start of every session: current status and next step |
 
 ## How to work in this repository
 
 1. Read `docs/progress.md` and inspect the repository (git status, configuration, current code) before changing anything.
 2. Follow the current request. The roadmap is direction, not authorization to implement every milestone in one session.
-3. For a new repository with no narrower request, start at Milestone 0 in `docs/roadmap.md`. Do not scaffold future components.
+3. With no narrower request, continue at the earliest incomplete stage in `docs/roadmap.md`. Do not scaffold future components.
 4. When continuing, find the earliest incomplete dependency, state the immediate target in one line, and implement a concrete, runnable increment.
 5. Preserve working code and unrelated changes. Extend the current stack rather than rewriting it. Add dependencies only for a present problem.
 6. Run checks appropriate to the change. Fix failures the change caused, then move on. Do not rerun unchanged checks or loop on review and refactoring.
@@ -45,11 +45,7 @@ Only add or update commands in the README's "Commands" section, and only command
 
 ## Learning mode
 
-`docs/learning.md` assigns each component an owner. Respect it:
-
-- **Owner writes:** do not implement it. Explain the concept, point to the relevant OpenCV or NumPy functions, give hints or small illustrative snippets outside the source tree, and review code the owner wrote. Write it yourself only if the owner explicitly asks for that specific piece.
-- **Claude writes:** implement normally, then explain the non-obvious parts in a few sentences.
-- **Pair:** propose the structure and interfaces; the owner fills in the core logic; you write tests and glue.
+Claude implements every component, then explains the non-obvious parts in a few sentences, in plain terms the owner can verify by running something. If the owner asks to write a piece themselves, switch to explaining, hinting and reviewing for that piece.
 
 When the owner asks how something works, answer with reference to this repository's actual code and data where possible, and do not edit files unless asked. Prefer explanations the owner can verify by running something (print a value, show an intermediate image).
 
@@ -70,9 +66,9 @@ Details and rationale are in `docs/design.md` and `docs/testing.md`.
 
 ## Technical direction
 
-- Python, NumPy, OpenCV, and pytest, in a virtual environment. Source in `src/cubetrack/`, tests in `tests/`.
+- Python, NumPy, OpenCV, PyTorch, and pytest, in a virtual environment. Source in `src/cubetrack/`, tests in `tests/`. A local NVIDIA GPU (RTX 4080 Super) is available for training and inference.
 - Cube mathematics (`cube/`) imports nothing from OpenCV or any UI library. The camera pipeline is independent of rendering.
-- Classical vision and constrained state estimation first. Add learned models only after a recorded failure pattern and a measured baseline.
+- Vision is one segmentation network (per-pixel: background, cube body, hand, six sticker colors) trained mostly on synthetic frames and judged only on real held-out sessions; classical geometry and cube-state logic sit on top (D-009). The calibrated classifier (D-008) is the baseline it must beat. Turn detection compares observations with engine predictions; it is not a learned end-to-end model.
 - Never use an LLM to transform cube states, decide solvability, or track frames.
 - Local only. No cloud services, accounts, databases, or paid APIs unless asked.
 - Large recordings stay out of git (see `.gitignore`); small redistributable fixtures may be committed.

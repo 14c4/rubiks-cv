@@ -14,9 +14,15 @@ fixtures/local/
 *.mkv
 *.mov
 
+# Per-machine color calibration (depends on your camera and lighting)
+calibration/
+
 # Small redistributable fixtures are committed under tests/fixtures/
 
 # Editors and OS
 .vscode/
 .idea/
 .DS_Store
+
+# Personal learning notes and ownership table (kept local)
+docs/learning.md

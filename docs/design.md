@@ -46,7 +46,7 @@ For an empty repository, prefer Python, NumPy, OpenCV, and pytest for the mathem
 
 These are defaults, not reasons to replace an established implementation. Keep cube mathematics independent of OpenCV and UI libraries. Keep the camera pipeline independent of rendering and future coaching.
 
-Start with classical vision and constrained state estimation. Add learned models only after recording a specific failure pattern and establishing a baseline that a model can meaningfully improve. Do not use an LLM to perform cube-state transformations, decide solvability, or serve as the per-frame tracking engine.
+Vision uses a segmentation network trained mostly on synthetic, automatically labelled frames, with classical geometry on top (D-009). It replaced the classical-first rule after a recorded failure (lighting changes broke calibrated colors) and a measured baseline (D-008). Real held-out sessions are the only accepted evidence of vision accuracy; synthetic results are development aids. State estimation stays constrained and explicit. Do not use an LLM to perform cube-state transformations, decide solvability, or serve as the per-frame tracking engine.
 
 Local processing is the initial deployment model. Cloud infrastructure, accounts, databases, external APIs, and paid services are outside the core milestones unless requested.
 
